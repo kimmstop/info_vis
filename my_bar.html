@@ -1,0 +1,671 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3-legend/2.25.6/d3-legend.min.js"></script>
+
+
+    <title>My Scatterplot</title>
+    <style>
+        .container {
+            background: #eee;
+            width: 100%;
+            height: 10%;    
+        }
+        .container1 {
+            width: 1560px;
+            height: 1000px;
+            background: eee;
+            display: flex;
+            margin-left: 300px;
+            border: 4px solid black;
+            
+        }
+        #left_container {
+            width: 740px;
+            margin-left: 10px;
+            height: 990px;
+            background-color: rgb(101, 72, 34);
+            overflow: auto;
+        }
+        #left_svg {
+            width: 700px;
+            height: 2000px;
+            flex: 1;
+            display: grid;
+            grid-gap: 10px;
+            margin: 10px;
+            background-color: white;
+            border: 2px solid black;
+        }
+        #searchBar {
+            width: 350px;
+            height: 50px;
+            
+            margin: 10px;
+            margin-top: 20px;
+            border: 2px solid black;
+            border-radius: 10px;
+            font-size: 20px;
+            padding-left: 20px;
+        }
+
+       
+        .tooltip {
+            position: absolute;
+            text-align: left;
+            width: 200px;
+            height: 200px;
+            padding: 10px;
+            font: 20px sans-serif;
+            background: lightsteelblue;
+            border: 0px;
+            border-radius: 8px;
+            pointer-events: none;
+            opacity: 0;
+            margin-left: 10px;
+            white-space: pre-line;
+        }
+        .hidden {
+            opacity: 0;
+        }
+        
+        #right_container {
+            width: 800px;
+            height: 990px;
+            margin-right: 10px;
+            background-color: white;
+        
+        }
+        
+       
+        #right_svg {
+            width: 790px;
+            height: 990px;
+            flex: 1;
+            background-color: white;
+        }
+        
+        #barChart {
+            width: 100%;
+            height: 100%;
+        }
+
+        
+
+    </style>
+</head>
+
+<body>
+    <header>
+        <nav class="container navbar navbar-light bg-light">
+            <div class="container-fluid">
+                <span class="navbar-brand mb-0 h1">Pokemon advantage Calculator</span>
+            </div>
+        </nav>
+
+    </header>
+
+    <div class="container1">     
+        <div class = "left_container" id="left_container">
+            <input type="text" id="searchBar" placeholder="Search for a Pokemon">
+            <ul id="pokemonList" class="pokemon-list">
+            </ul>
+            <svg  id="left_svg">
+                <linearGradient id="halfGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="50%"/>
+                    <stop offset="50%"/>
+                  </linearGradient>
+            </svg>
+            <div id="tooltip" class="tooltip hidden"></div>
+        </div>
+            
+            
+        
+        <div id="right_container">
+            <svg id="right_svg">
+                
+            </svg>
+        </div>
+            
+
+        
+    </div>
+
+    <script>
+        //Bug, Dark, Dragon, Electric, Fairy, Fighting, Fire, Flying, Ghost, Grass, Ground, Ice, Normal, Poison, Psychic, Rock, Steel, Water//
+        
+
+        
+        let margin = { top: 15, right: 10, bottom: 10, left: 40 };
+        let cellSize = 40;
+
+
+        
+        let left_svg;
+        let right_svg;
+        let entitiy_cell;
+        let xAxis, yAxis;
+        let xScale, yScale, zScale;
+        
+
+
+        let data_per_type = new Map(); //각 type 별 평균 통계
+        let stat_label = ["Cnt", "Name", "Total", "HP", "Attack", "Defense", "Speed"];
+
+        let type_label = ["Bug", "Dark", "Dragon", "Electric", "Fairy",
+                        "Fighting", "Fire", "Flying", "Ghost", "Grass",
+                        "Ground", "Ice", "Normal", "Poison", "Psychic",
+                        "Rock", "Steel", "Water"];
+        let color_label = ["#91A119", "#624D4E", "#5060E1", "#FAC000", "#EF70EF",
+                            "#FF8000", "#E62829", "#ADD2F5", "#704170", "#3FA129",
+                            "#915121", "#3DCEF3", "#9FA19F", "#9141CB", "#EF4179", 
+                            "#AFA981", "#60A1B8", "#2980EF"];
+        let legend;
+   
+let type_matrix = [
+    // Bug    Dark   Dragon Electric Fairy  Fighting Fire   Flying Ghost  Grass   Ground  Ice   Normal Poison Psychic Rock   Steel  Water
+    [1,      2,     1,     1,       0.5,    0.5,     0.5,   0.5,    0.5,   2,      1,     1,    1,      0.5,    2,     1,     0.5,    1], // Bug
+    [1,      0.5,   1,     1,       0.5,    0.5,     1,     1,      2,     1,      1,     1,    1,      1,      2,     1,     1,      1],   // Dark
+    [1,      1,     2,     1,       0,      1,       1,     1,      1,     1,      1,     1,    1,      1,      1,     1,     0.5,    1],   // Dragon
+    [1,      1,     0.5,   0.5,     1,      1,       1,     2,      1,     0.5,    0,     1,    1,      1,      1,     1,     1,      2],   // Electric
+    [1,      2,     2,     1,       1,      2,       0.5,   1,      1,     1,      1,     1,    1,      0.5,    1,     1,     0.5,    1],   // Fairy
+    [0.5,    2,     1,     1,       0.5,    1,       1,     0.5,    0,     1,      1,     2,    2,      0.5,    0.5,   2,     2,      1],   // Fighting
+    [2,      1,     0.5,   1,       1,      1,       0.5,   1,      1,     0.5,    1,     0.5,  2,      2,      1,     2,     1,      1],   // Fire
+    [2,      1,     0.5,   1,       1,      1,       0.5,   1,      1,     2,      1,     2,    1,      1,      1,     0.5,   2,      0.5],   // Flying
+    [1,      0.5,   1,     1,       1,      1,       1,     1,      2,     1,      1,     1,    0,      1,      2,     1,     1,      1],   // Ghost
+    [0.5,    1,     0.5,   1,       1,      1,       0.5,   0.5,    1,     0.5,    2,     1,    1,      0.5,    1,     2,     0.5,    2], // Grass
+    [0.5,    1,     1,     2,       1,      1,       2,     0,      1,     0.5,    1,     1,    1,      2,      1,     2,     2,      2],   // Ground
+    [1,      1,     2,     1,       1,      1,       0.5,   2,      1,     2,      2,     0.5,  1,      1,      1,     1,     0.5,    0.5],   // Ice
+    [1,      1,     1,     1,       1,      1,       1,     1,      0,     1,      1,     1,    1,      1,      1,     0.5,   0.5,    1],   // Normal
+    [1,      1,     1,     1,       2,      1,       1,     1,      0.5,   2,      0.5,   1,    1,      0.5,    1,     0.5,   0,      1],   // Poison
+    [1,      0,     1,     1,       1,      2,       1,     1,      1,     1,      1,     1,    1,      2,      0.5,   1,     0.5,    1],   // Psychic
+    [2,      1,     1,     1,       1,      0.5,     2,     1,      1,     1,      0.5,   2,    1,      1,      1,     1,     0.5,    1],   // Rock
+    [1,      1,     1,     0.5,     2,      1,       0.5,   1,      1,     1,      1,     2,    1,      1,      1,     2,     0.5,    0.5],   // Steel
+    [1,      1,     0.5,   1,       1,      1,       2,     1,      1,     0.5,    2,     1,    1,      1,      1,     2,     1,      0.5]    // Water
+];
+        let color_map = {};
+        for (let i = 0; i < type_label.length; i++) {
+            color_map[type_label[i]] = color_label[i];
+        }
+        
+        let entity_arr;
+        d3.csv("https://raw.githubusercontent.com/kimmstop/info_vis/main/new_Pokemon.csv")
+            .then(csvData => {
+                entity_arr = csvData.map((d, i) =>({
+                id: i,
+                Name: get_name(d.Name),
+                Type1: d["Type 1"],
+                Type2: d["Type 2"],
+                Total: +d.Total,
+                HP: +d.HP,
+                Attack: +d.Attack,
+                Defense: +d.Defense,
+                SpAtk: +d["Sp. Atk"],
+                SpDef: +d["Sp. Def"],
+                Speed: +d.Speed,
+                Generation: +d.Generation,
+                Legendary: d.Legendary
+                }));
+                entity_arr.sort((a, b) => {
+                    if (a.Name < b.Name) return -1;
+                    if (a.Name > b.Name) return 1;
+                    return 0;
+                });
+                update_pokemon_list();
+                d3.select("input[type=text]").on("change", update_pokemon_list);
+            });
+        
+        function update_pokemon_list(){
+            d3.selectAll("rect")
+                .attr("stroke", "none")
+                .attr("stroke-width", null)
+                .attr("rx", null)
+                .attr("ry", null);
+            
+            let key_word = d3.select("input[type=text]").property("value");
+            
+            filtered_arr = entity_arr.filter(d => d.Name.toLowerCase().includes(key_word));
+            console.log(filtered_arr);
+            initialize(filtered_arr);
+        }
+
+
+        function get_name(name){
+            if(name.includes("Mega")){
+                let [first, second] = name.split(" ");
+                
+                return "M_" + second;
+            }else{
+                return name;
+            }
+        }
+        function initialize(arr) {
+            
+            
+            left_svg = d3.select("#left_svg");
+           
+
+            let total_cnt = arr.length;
+            let cols = 6;
+            let rows = parseInt(total_cnt / cols) + 1;
+            let space = 100;
+
+            let cell_w = 85;
+            let cell_h = 90;
+            let circle_size = 25;
+
+            let height = rows * ((cell_h + 10) + 1);
+
+            
+
+            left_svg   
+                    .style("height", `${height}px`);
+
+            
+            left_svg.selectAll("rect")
+                .data(arr)
+                .join("rect")
+                .attr("id", d => "rect_" + d.id)
+                .attr("width", cell_w)
+                .attr("height", cell_h)
+                .attr("fill", "white")
+                .attr("transform", (d, i) => `translate(${(i % 6) * space + circle_size / 2 + margin.left + 30 - (cell_w /2)},
+                 ${parseInt(i / 6) * space + circle_size / 2 + margin.top + 15 - (cell_h / 2) + 10})`);
+
+            
+            left_svg.selectAll("circle")
+                .data(arr)
+                .join("circle")
+                .attr("id", d => d.id)
+                .attr("cx", (d, i)=> ((i % 6)) * space + circle_size / 2 + margin.left + 30)
+                .attr("cy", (d, i)=> (parseInt(i / 6))  * space + circle_size / 2 + margin.top + 15)
+                .attr("r", circle_size)
+                .attr("fill", (d, idx) => {
+                    if(d.Type2 ===''){
+                        return color_map[d.Type1];    
+                    }else{
+                        let gradientId = "gradient_" + d.id;
+                        let gradient = left_svg.append("defs")
+                            .append("linearGradient")
+                            .attr("id", gradientId)
+                            .attr("x1", "0%")
+                            .attr("y1", "0%")
+                            .attr("x2", "100%")
+                            .attr("y2", "0%");
+                            gradient.append("stop")
+                            .attr("offset", "50%")
+                            .attr("style", "stop-color: " + color_map[d.Type1]+";");                
+                            gradient.append("stop")
+                            .attr("offset", "50%")
+                            .attr("style", "stop-color: " + color_map[d.Type2]+";");
+                            return "url(#" + gradientId + ")";
+                    }
+                });
+            
+            
+            left_svg.selectAll("circle").on('mouseover', popup);
+            left_svg.selectAll("circle").on('mouseout', disappear);
+
+            left_svg.selectAll("circle").on('click', select_pokemon);
+
+            left_svg.selectAll("text")
+                .data(arr)
+                .join("text")
+                .attr("x", (d, i)=> ((i % 6)) * space + circle_size / 2 + margin.left + 30 )
+                .attr("y", (d, i)=> (parseInt(i / 6))  * space + circle_size / 2 + margin.top + 15 + circle_size + 20)
+                .style("text-anchor", "middle")
+                .text(d => d.Name);
+                            
+
+            
+           
+        }
+        
+
+        
+        function popup(event, d) {
+            
+            let tooltip = d3.select("#tooltip");
+            tooltip.transition()
+                .duration(200)
+                .style("opacity", .9);
+            if(d.Type2 === ''){
+                tooltip.html(`<strong> Name: ${d.Name}\n Type: ${d.Type1}\n</strong> Atk: ${d.Attack}  Def: ${d.Defense}\n SpAtk: ${d.SpAtk}  SpDef: ${d.SpDef} \n Speed: ${d.Speed}`)
+                .style("left", (event.pageX + 10) + "px")
+                .style("top", (event.pageY - 20) + "px")
+                .style("width", "250px")
+                .style("height", "150px");
+            }else{
+                tooltip.html(`<strong> Name: ${d.Name}\n Type: ${d.Type1}, ${d.Type2}\n</strong> Atk: ${d.Attack}  Def: ${d.Defense}\n SpAtk: ${d.SpAtk}  SpDef: ${d.SpDef} \n Speed: ${d.Speed}`)
+                .style("left", (event.pageX + 10) + "px")
+                .style("top", (event.pageY - 20) + "px")
+                .style("width", "250px")
+                .style("height", "150px");
+            }
+        }
+
+       
+
+        function disappear(event, d) {
+            d3.select("#tooltip").transition()
+            .duration(500)
+            .style("opacity", 0);
+        }
+
+        function select_pokemon(event, d) {
+            console.log("F");
+            d3.selectAll("rect")
+                .attr("stroke", "none");
+
+            let selected_id = d3.select(this).attr("id");
+            d3.select("#rect_" + selected_id)
+            .attr("stroke", "black")
+            .attr("stroke-width", 4)
+            .attr("rx", 10)
+            .attr("ry", 10);
+            
+            
+
+            update_bar(d);
+
+            
+        }
+    
+    function update_bar(pokemon) {
+        let width = 680;
+        let height = 900;
+        let margin = { top: 10, right: 10, bottom: 10, left: 10 };
+        let atk_eff_arr = [];
+        let def_eff_arr = [];
+        
+        
+
+        entity_arr.map((d, idx) => {
+            let eff = get_effect(pokemon, d);
+            let eff_entity = {
+                effective: eff,
+                index: idx
+            };
+            
+            atk_eff_arr.push(
+                {
+                    effective: eff_entity.effective.attack,
+                    index: eff_entity.index
+                });
+            def_eff_arr.push(
+                {
+                    effective: eff_entity.effective.defense,
+                    index: eff_entity.index
+                });
+        });
+        console.log("ATK");
+        
+        
+        
+        let atk_eff_arr_top = [...atk_eff_arr].sort((a, b) => b.effective - a.effective)
+            .slice(0, 10);
+        let def_eff_arr_top = [...def_eff_arr].sort((a, b) => b.effective - a.effective)
+            .slice(-10);
+        console.log("DEF");
+        console.log(def_eff_arr_top);
+        let total_eff_arr_top = atk_eff_arr_top.concat(def_eff_arr_top);
+        let [xMin, xMax] = d3.extent(total_eff_arr_top);
+     
+
+
+        right_svg = d3.select("#right_svg");
+
+        
+
+        right_svg.selectAll("circle").remove(); 
+        right_svg.append("circle")
+            .attr("id", pokemon.id)
+            .attr("cx", 50)
+            .attr("cy", 50)
+            .attr("r", 25)
+            .attr("fill", () => {
+                if(pokemon.Type2 ===''){
+                    return color_map[pokemon.Type1];    
+                }else{
+                    let gradientId = "gradient_right" + pokemon.id;
+                    let gradient = right_svg.append("defs")
+                        .append("linearGradient")
+                        .attr("id", gradientId)
+                        .attr("x1", "0%")
+                        .attr("y1", "0%")
+                        .attr("x2", "100%")
+                        .attr("y2", "0%");
+                        gradient.append("stop")
+                        .attr("offset", "50%")
+                        .attr("style", "stop-color: " + color_map[pokemon.Type1]+";");                
+                        gradient.append("stop")
+                        .attr("offset", "50%")
+                        .attr("style", "stop-color: " + color_map[pokemon.Type2]+";");
+                        return "url(#" + gradientId + ")";
+                }
+            });
+        right_svg.selectAll("text").remove(); 
+        right_svg.append("text")
+            .attr("class", "bar-group")
+            .attr("x", 50)
+            .attr("y", 100)
+            .style("text-anchor", "middle")
+            .text(pokemon.Name);
+
+        right_svg.select("circle").on('mouseover', () => popup(event, pokemon));
+        right_svg.select("circle").on('mouseout', disappear);
+
+
+        xScale = d3.scaleLinear()
+                .domain([-1500, 1500])
+                .range([(width / 2) * -1, width / 2]);
+            
+
+        yScale = d3.scaleBand()
+                .domain(total_eff_arr_top.map((d, i) => i)) 
+                .range([0, height])
+                .paddingInner(0.2) 
+                .paddingOuter(0.2);
+                
+        zScale = d3.scaleOrdinal().domain(type_label).range(color_label);
+
+        xAxis = right_svg.append("g");
+        yAxis = right_svg.append("g");
+        
+        
+        xAxis  
+            .attr("transform", `translate(360, ${height + 50})`)
+            .style("stroke-width", "2")
+            .style("font-size", "15")
+            .call(d3.axisBottom(xScale).ticks(5));
+            
+        xAxis
+            .append("text")
+            .attr("class", "bar-group")
+            .attr("x", 0)
+            .attr("y", 35)
+            .style("text-anchor", "middle")
+            .style("fill", "black")
+            .style("font-size", "20")
+            .text("Advantage");
+        
+            
+        yAxis
+            .attr("transform", `translate(360, 50)`)
+            .style("stroke-width", "2")
+            .style("font-size", "15")
+            .call(d3.axisLeft(yScale)
+            .tickValues([]));
+        
+
+        
+       
+        
+
+        let xVar = total_eff_arr_top;
+        let yVar;
+
+
+        
+        right_svg.selectAll("rect")
+            .data(total_eff_arr_top)
+            .join("rect")
+            .attr("x", d =>{
+                if(d.effective < 0){
+                    return 360 - xScale(Math.abs(d.effective));
+                    
+                }else{
+                    return 360;
+                }
+            })
+            .attr("y", (d, i) => {
+                return yScale(i) + 50;
+            })
+            .attr("width", d => 
+                 Math.abs(xScale(d.effective))
+            )
+            
+            .attr("height", height / 40)
+            .attr("fill",(d, idx) => {
+                let pokemon_data = entity_arr[d.index];
+                if(pokemon_data.Type2 ===''){
+                    return color_map[pokemon_data.Type1];    
+                }else{
+                    let gradientId = "gradient_rect" + pokemon_data.id;
+                    let gradient = right_svg.append("defs")
+                        .append("linearGradient")
+                        .attr("id", gradientId)
+                        .attr("x1", "0%")
+                        .attr("y1", "0%")
+                        .attr("x2", "0%")
+                        .attr("y2", "100%");
+                        gradient.append("stop")
+                        .attr("offset", "50%")
+                        .attr("style", "stop-color: " + color_map[pokemon_data.Type1]+";");                
+                        gradient.append("stop")
+                        .attr("offset", "50%")
+                        .attr("style", "stop-color: " + color_map[pokemon_data.Type2]+";");
+                        return "url(#" + gradientId + ")";
+                }
+            })
+            .on('mouseover', (event, d) => {
+                popup(event, entity_arr[d.index])
+            })
+            .on('mouseout', disappear);
+            
+        right_svg.selectAll("rect_text")
+            .data(total_eff_arr_top)
+            .join("text")
+            .text(d => entity_arr[d.index].Name) 
+            .attr("x", function(d) {
+                let textElement = d3.select(this);
+                let cw = textElement.node().getComputedTextLength();
+                if (d.effective < 0) {
+                    return 360 + 6; 
+                } else {
+                    return 360 - cw - 6; 
+                }
+            })
+            .attr("y", (d, i) => yScale(i) + 50 + height / 40 - 8) 
+            .attr("fill", "black"); 
+        
+
+
+        legend = right_svg.append("g");
+        legend
+            .attr("transform", `translate(${width +10}, 10)`)
+            .style("font-size", "15")
+            .style("display", "inline")
+            .call(d3.legendColor().scale(zScale)); 
+        
+       
+    }
+    function get_effect(selected_pokemon, other_pokemon){
+        let atk_eff_tpye;
+        let def_eff_tpye;
+        let s_t_idx1 = type_label.findIndex(type => type === selected_pokemon.Type1);
+        let s_t_idx2;
+        if(selected_pokemon.Type2 != ''){
+            s_t_idx2 = type_label.findIndex(type => type === selected_pokemon.Type2);
+        }
+        let o_t_idx1 = type_label.findIndex(type => type === other_pokemon.Type1);
+        let o_t_idx2;
+        if(other_pokemon.Type2 != ''){
+            o_t_idx2 = type_label.findIndex(type => type === other_pokemon.Type2);
+        }
+        if(selected_pokemon.Type2 === ''){
+            if(other_pokemon.Type2 === ''){ // 단일 vs 단일
+                atk_eff_tpye = type_matrix[s_t_idx1][o_t_idx1];
+                def_eff_tpye = type_matrix[o_t_idx1][s_t_idx1];
+            }else{ // 단일 vs 멀티
+                atk_eff_tpye = (type_matrix[s_t_idx1][o_t_idx1] + type_matrix[s_t_idx1][o_t_idx2]) / 2;
+                def_eff_tpye = (type_matrix[o_t_idx1][s_t_idx1] + type_matrix[o_t_idx2][s_t_idx1]) / 2;
+            }
+        }else{
+            if(other_pokemon.Type2 === ''){ // 멀티 vs 단일
+                atk_eff_tpye = (type_matrix[s_t_idx1][o_t_idx1] + type_matrix[s_t_idx2][o_t_idx1]) / 2;
+
+                def_eff_tpye = (type_matrix[o_t_idx1][s_t_idx1] + type_matrix[o_t_idx1][s_t_idx2]) / 2;
+            }else{ // 멀티 vs 멀티
+                atk_eff_tpye = (type_matrix[s_t_idx1][o_t_idx1] + type_matrix[s_t_idx1][o_t_idx2]);
+                atk_eff_tpye += (type_matrix[s_t_idx2][o_t_idx1] + type_matrix[s_t_idx2][o_t_idx2]);
+                atk_eff_tpye /= 4;
+
+                def_eff_tpye = (type_matrix[o_t_idx1][s_t_idx1] + type_matrix[o_t_idx1][s_t_idx2]);
+                def_eff_tpye += (type_matrix[o_t_idx2][s_t_idx1] + type_matrix[o_t_idx2][s_t_idx1]);
+                def_eff_tpye /= 4;
+            }
+        }
+        if(atk_eff_tpye * other_pokemon.Total > 2000 || def_eff_tpye * other_pokemon.Total < - 2000){
+            console.log("#!@#");
+        }
+        let atk_speed_adv = 0;
+        let def_speed_adv = 0;
+        if(selected_pokemon.Speed >= other_pokemon.Speed){
+            atk_speed_adv = (selected_pokemon.Speed - other_pokemon.Speed) * atk_eff_tpye;
+            def_speed_adv = (selected_pokemon.Speed - other_pokemon.Speed) * def_eff_tpye;
+        }else{
+            atk_speed_adv = (other_pokemon.Speed - selected_pokemon.Speed) * atk_eff_tpye;
+            def_speed_adv = (other_pokemon.Speed - selected_pokemon.Speed) * def_eff_tpye;
+        }
+
+        return {
+            attack: ((selected_pokemon.Attack * atk_eff_tpye - other_pokemon.Defense) +
+                    (selected_pokemon.SpAtk * atk_eff_tpye - other_pokemon.SpDef) +
+                    atk_speed_adv) * atk_eff_tpye, 
+            defense: ((other_pokemon.Attack * def_eff_tpye - selected_pokemon.Defense) +
+                    (other_pokemon.SpAtk * def_eff_tpye - selected_pokemon.SpDef) +
+                    def_speed_adv) *  -1 * def_eff_tpye
+                };
+
+            /*attack: atk_eff_tpye * (selected_pokemon.Attack - other_pokemon.Defense +
+                                    selected_pokemon.SpAtk - other_pokemon.SpDef +
+                                    selected_pokemon.Speed - other_pokemon.Speed + 
+                                    selected_pokemon.Total - other_pokemon.Total), 
+            defense:def_eff_tpye * (other_pokemon.Attack - selected_pokemon.Defense +
+                                    other_pokemon.SpAtk - selected_pokemon.SpDef +
+                                    other_pokemon.Speed - selected_pokemon.Speed + 
+                                    other_pokemon.Total - selected_pokemon.Total)};*/
+    }
+
+        
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+        crossorigin="anonymous"></script>
+</body>
+
+</html>
+
+
+
+
