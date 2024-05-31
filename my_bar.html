@@ -126,24 +126,15 @@
             </svg>
             <div id="tooltip" class="tooltip hidden"></div>
         </div>
-            
-            
-        
         <div id="right_container">
             <svg id="right_svg">
                 
             </svg>
         </div>
-            
-
-        
     </div>
 
     <script>
         //Bug, Dark, Dragon, Electric, Fairy, Fighting, Fire, Flying, Ghost, Grass, Ground, Ice, Normal, Poison, Psychic, Rock, Steel, Water//
-        
-
-        
         let margin = { top: 15, right: 10, bottom: 10, left: 40 };
         let cellSize = 40;
 
@@ -157,7 +148,6 @@
         
 
 
-        let data_per_type = new Map(); //각 type 별 평균 통계
         let stat_label = ["Cnt", "Name", "Total", "HP", "Attack", "Defense", "Speed"];
 
         let type_label = ["Bug", "Dark", "Dragon", "Electric", "Fairy",
@@ -323,10 +313,6 @@ let type_matrix = [
                 .attr("y", (d, i)=> (parseInt(i / 6))  * space + circle_size / 2 + margin.top + 15 + circle_size + 20)
                 .style("text-anchor", "middle")
                 .text(d => d.Name);
-                            
-
-            
-           
         }
         
 
@@ -371,9 +357,6 @@ let type_matrix = [
             .attr("stroke-width", 4)
             .attr("rx", 10)
             .attr("ry", 10);
-            
-            
-
             update_bar(d);
 
             
@@ -406,15 +389,12 @@ let type_matrix = [
                     index: eff_entity.index
                 });
         });
-        console.log("ATK");
-        
-        
+            
         
         let atk_eff_arr_top = [...atk_eff_arr].sort((a, b) => b.effective - a.effective)
             .slice(0, 10);
         let def_eff_arr_top = [...def_eff_arr].sort((a, b) => b.effective - a.effective)
             .slice(-10);
-        console.log("DEF");
         console.log(def_eff_arr_top);
         let total_eff_arr_top = atk_eff_arr_top.concat(def_eff_arr_top);
         let [xMin, xMax] = d3.extent(total_eff_arr_top);
@@ -539,6 +519,7 @@ let type_matrix = [
                 if(pokemon_data.Type2 ===''){
                     return color_map[pokemon_data.Type1];    
                 }else{
+                    /*ChatGPT의 defs, linearGradient  예제 참고*/
                     let gradientId = "gradient_rect" + pokemon_data.id;
                     let gradient = right_svg.append("defs")
                         .append("linearGradient")
@@ -554,6 +535,7 @@ let type_matrix = [
                         .attr("offset", "50%")
                         .attr("style", "stop-color: " + color_map[pokemon_data.Type2]+";");
                         return "url(#" + gradientId + ")";
+                    /*ChatGPT의 defs, linearGradient  예제 참고*/
                 }
             })
             .on('mouseover', (event, d) => {
@@ -624,9 +606,7 @@ let type_matrix = [
                 def_eff_tpye /= 4;
             }
         }
-        if(atk_eff_tpye * other_pokemon.Total > 2000 || def_eff_tpye * other_pokemon.Total < - 2000){
-            console.log("#!@#");
-        }
+    
         let atk_speed_adv = 0;
         let def_speed_adv = 0;
         if(selected_pokemon.Speed >= other_pokemon.Speed){
@@ -645,15 +625,6 @@ let type_matrix = [
                     (other_pokemon.SpAtk * def_eff_tpye - selected_pokemon.SpDef) +
                     def_speed_adv) *  -1 * def_eff_tpye
                 };
-
-            /*attack: atk_eff_tpye * (selected_pokemon.Attack - other_pokemon.Defense +
-                                    selected_pokemon.SpAtk - other_pokemon.SpDef +
-                                    selected_pokemon.Speed - other_pokemon.Speed + 
-                                    selected_pokemon.Total - other_pokemon.Total), 
-            defense:def_eff_tpye * (other_pokemon.Attack - selected_pokemon.Defense +
-                                    other_pokemon.SpAtk - selected_pokemon.SpDef +
-                                    other_pokemon.Speed - selected_pokemon.Speed + 
-                                    other_pokemon.Total - selected_pokemon.Total)};*/
     }
 
         

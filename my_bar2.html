@@ -88,7 +88,7 @@
         let checked_type = [];
         let checked_type_map = {}; 
 
-        let data_per_type = new Map(); //각 type 별 평균 통계
+
         let stat_label = ["Cnt", "Total", "HP", "Attack", "Defense", "Speed"];
 
         let type_label = ["Bug", "Dark", "Dragon", "Electric", "Fairy",
@@ -303,10 +303,6 @@
                 .attr("y", -9) 
                 .on("change", get_checked_type);
             console.log(checked_type);
-            //let
-            //entity_arr.filter(d => d.)
-            
-            //update(cur_page_pk);
         }
 
         function get_checked_type() {
@@ -372,7 +368,6 @@
             page_text
                 .append("text")
                 .attr("class", "page_text")
-                //.attr("transform", `translate(100, 100)`)
                 .attr("transform", `translate(${20},${30})`)
                 .style("text-anchor", "start")
                 .style("font-size", "20px")
@@ -445,15 +440,6 @@
        
         }
 
-        function reset() {
-            
-
-            
-        }
-
-        function update_xAxis(xVar) {
-          
-        }
 
         function popup(event, d) {
             console.log(d);

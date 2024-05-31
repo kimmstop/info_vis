@@ -149,9 +149,7 @@
                         }
                     });
                 });
-                
-                
-                
+
 
                 data_per_type = Array.from(data_per_type).reduce((acc, [key, value]) => {
                     let [Type, stat] = key.split('_');
@@ -179,9 +177,6 @@
                 data_per_type = Object.values(data_per_type);
                 console.log(data_per_type);
                 
-
-                
-
                 initialize();
                 update();
         })
@@ -202,7 +197,7 @@
                 .append("text")
                 .attr("transform", "rotate(-90)")
                 .attr("x", -height / 2)
-                .attr("y", -margin.left + 30) // 레이블의 위치 조정
+                .attr("y", -margin.left + 30) 
                 .style("text-anchor", "middle")
                 .style("fill", "black")
                 .style("font-size", "30")
@@ -281,7 +276,7 @@
             xAxis
                 .select("text")
                 .attr("x", width / 2 - 80)
-                .attr("y", margin.top + 50 ) // 레이블의 위치 조정
+                .attr("y", margin.top + 50 )
                 .style("text-anchor", "middle")
                 .style("fill", "black")
                 .style("font-size", "30")
@@ -302,16 +297,8 @@
                 .call(d3.legendColor().scale(zScale));
         }
 
-        function reset() {
-            
-
-            
-        }
-
-        function update_xAxis(xVar) {
-          
-        }
-
+ 
+        /*ChatGPT의 tooltip 예제 참고*/
         function popup(event, d) {
             let tooltip = d3.select("#tooltip");
             tooltip.transition()
@@ -329,6 +316,7 @@
             .duration(500)
             .style("opacity", 0);
         }
+        /*ChatGPT의 tooltip 예제 참고*/
 
         
     </script>
